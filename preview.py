@@ -7,30 +7,51 @@ import tf
 import vtk
 import time
 import numpy as np
-import scipy.spatial.transform.rotation as R
+import matplotlib.pyplot as plt
+# import scipy.spatial.transform.rotation as R
+from scipy.spatial.transform import Rotation as R
+
 
 class preview():
     
     def __init__(self):
+        
+        data = []
+        file = open('preview.txt')
+        lines = file.readlines()
+        for line in lines:
+            line = line.split(' ')
+            line = line[2:]
+            data.append(line)
+        self.data = np.array(data)
+        self.data = self.data.astype(np.float64)
+
         euler = []
-        quaternion = np.load('quaternion.npy')
+        quaternion = self.data[:, 0:4]
         for i in range(quaternion.shape[0]):
-            euler.append(R.Rotation(quaternion[i,:]).as_euler('xyz', degrees=True))
+            euler.append(R(quaternion[i,:]).as_euler('xyz', degrees=True))
         self.euler = np.array(euler)
 
 
-    def show(self):
+    def preview_pose(self):
             
+            # model_offset_1 = -38
+            # model_offset_2 = -16
+            # model_offset_3 = 128
+            # model_rotate = -90
+
             model_offset_1 = -38
-            model_offset_2 = -16
-            model_offset_3 = 128
+            model_offset_2 = -128
+            model_offset_3 = -16
+            model_rotate = 90
 
             reader = vtk.vtkSTLReader()
             reader.SetFileName('probe.STL')
 
             transform = vtk.vtkTransform()
+            transform.RotateX(model_rotate)
             transform.Translate(model_offset_1, model_offset_2, model_offset_3)
-            transform.RotateX(-90)
+            # transform.RotateX(model_rotate)
 
             transformFilter = vtk.vtkTransformPolyDataFilter()
             transformFilter.SetInputConnection(reader.GetOutputPort())
@@ -43,11 +64,16 @@ class preview():
             actor = vtk.vtkActor()
             actor.SetMapper(mapper)
             actor.SetScale(0.1, 0.1, 0.1)
-            actor.GetProperty().SetColor(220 / 255.0, 220 / 255.0, 220 / 255.0)
-            # actor.GetProperty().SetOpacity(0.6)
+            actor.GetProperty().SetColor(150 / 255.0, 150 / 255.0, 150 / 255.0)
+            actor.GetProperty().SetOpacity(0.6)
+
+            xyz_axes = vtk.vtkAxesActor()
+            xyz_axes.SetPosition(0, 0, 0)
+            xyz_axes.SetTotalLength(20, 20, 20)
 
             ren = vtk.vtkRenderer()
             ren.AddActor(actor)
+            ren.AddActor(xyz_axes)
 
 
             # axes = vtk.vtkAxesActor()
@@ -61,28 +87,34 @@ class preview():
             # axes.SetUserTransform(axes_transform)
 
             camera = vtk.vtkCamera()
-            camera.SetClippingRange(1, 1)
-            camera.SetViewUp(0, 0, 0)
-            camera.SetPosition(0, 0, -1000)
-            camera.SetFocalPoint(0, 0, 1)
-            # camera.Roll(70)
+            # camera.SetClippingRange(1, 1)
+            # camera.SetViewAngle(60)
+            camera.SetPosition(10, 10, 10)
+            camera.SetFocalPoint(0, 0, 0)
+            camera.Roll(235)
             camera.ComputeViewPlaneNormal()
 
             ren.SetActiveCamera(camera)
             ren.ResetCamera()
             ren.SetBackground(0 / 255.0, 0 / 255.0, 0 / 255.0)
 
+            
             renWin = vtk.vtkRenderWindow()
             renWin.AddRenderer(ren)
-            renWin.SetSize(1920, 1080)
+            renWin.SetSize(800, 800)
             renWin.Render()
+
+            # iren = vtk.vtkRenderWindowInteractor()
+            # iren.SetRenderWindow(renWin)
+            # iren.Initialize()
+            # iren.Start()
 
             wif = vtk.vtkWindowToImageFilter()
             wif.SetInput(renWin)
             wif.Update()
 
             writer = vtk.vtkOggTheoraWriter()
-            writer.SetFileName('test.ogv')
+            writer.SetFileName('preview.ogv')
             writer.SetInputConnection(wif.GetOutputPort())
             writer.Start()
             writer.Write()
@@ -106,7 +138,48 @@ class preview():
                 time.sleep(0.01)
             writer.End()
 
+    def preview_force(self):
+
+        plt.clf()
+        plt.plot(np.arange(self.data.shape[0])/10, self.data[:,4])
+        plt.xlabel('Time (s)')
+        plt.ylabel('Force X (N)')
+        plt.savefig('force_x', dpi=600)
+
+        plt.clf()
+        plt.plot(np.arange(self.data.shape[0])/10, self.data[:,5])
+        plt.xlabel('Time (s)')
+        plt.ylabel('Force Y (N)')
+        plt.savefig('force_y', dpi=600)
+        
+        plt.clf()
+        plt.plot(np.arange(self.data.shape[0])/10, self.data[:,6])
+        plt.xlabel('Time (s)')
+        plt.ylabel('Force Z (N)')
+        plt.savefig('force_z', dpi=600)
+
+        plt.clf()
+        plt.plot(np.arange(self.data.shape[0])/10, self.data[:,7])
+        plt.xlabel('Time (s)')
+        plt.ylabel('Torque X (N*m)')
+        plt.savefig('torque_x', dpi=600)
+
+        plt.clf()
+        plt.plot(np.arange(self.data.shape[0])/10, self.data[:,8])
+        plt.xlabel('Time (s)')
+        plt.ylabel('Torque Y (N*m)')
+        plt.savefig('torque_y', dpi=600)
+
+        plt.clf()
+        plt.plot(np.arange(self.data.shape[0])/10, self.data[:,9])
+        plt.xlabel('Time (s)')
+        plt.ylabel('Torque Z (N*m)')
+        plt.savefig('torque_z', dpi=600)
+
 
 if __name__ == '__main__':
+    print('Previewing')
     demo = preview()
-    demo.show()
+    # demo.preview_pose()
+    demo.preview_force()
+    print('Finish!')
