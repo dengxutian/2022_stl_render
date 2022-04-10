@@ -180,6 +180,6 @@ class preview():
 if __name__ == '__main__':
     print('Previewing')
     demo = preview()
-    # demo.preview_pose()
+    demo.preview_pose()
     demo.preview_force()
     print('Finish!')
